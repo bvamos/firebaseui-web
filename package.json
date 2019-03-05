@@ -1,18 +1,20 @@
 {
-  "name": "firebaseui",
+  "name": "firebaseui-hu",
   "version": "3.5.2",
   "description": "Javascript library for customizable UI on top of Firebase SDK",
   "files": [
     "dist/firebaseui.js",
+    "dist/firebaseui__hu.js",
     "dist/firebaseui.css",
     "dist/npm.js",
+    "dist/npm__hu.js",
     "dist/index.d.ts",
     "dist/externs",
     "LICENSE",
     "README.md",
     "package.json"
   ],
-  "main": "./dist/npm.js",
+  "main": "./dist/npm__hu.js",
   "types": "./dist/index.d.ts",
   "style": "dist/firebaseui.css",
   "scripts": {
@@ -29,7 +31,7 @@
   "author": "Google",
   "repository": {
     "type": "git",
-    "url": "https://github.com/firebase/firebaseui-web.git"
+    "url": "https://github.com/bvamos/firebaseui-web"
   },
   "license": "Apache-2.0",
   "devDependencies": {
@@ -58,5 +60,8 @@
   },
   "peerDependencies": {
     "firebase": ">=5.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
   }
 }
