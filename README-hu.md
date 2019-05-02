@@ -1,5 +1,10 @@
 # Build the Hungarian package
 
+Works only with node v6 (node-sass is too old), I have v6.16.0 installed.
+
+    nvm list
+    nvm use 6.16.0
+
 ## Create Hungarian JS files
 
     npm run build build-js-hu
