@@ -5,6 +5,10 @@ Works only with node v6 (node-sass is too old), I have v6.16.0 installed.
     nvm list
     nvm use 6.16.0
 
+## Merge from original branch
+
+    git pull https://github.com/firebase/firebaseui-web.git master
+
 ## Create Hungarian JS files
 
     npm run build build-js-hu
