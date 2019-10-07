@@ -13,6 +13,7 @@ Works only with node v6 (node-sass is too old), I have v6.16.0 installed.
 
     npm run build build-js-hu
     npm run build build-npm-hu
+    npm run build build-esm-hu
 
 ## Create package
 

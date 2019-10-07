@@ -24,7 +24,7 @@ FirebaseUI Auth clients are also available for
 FirebaseUI fully supports all recent browsers. Signing in with federated
 providers (Google, Facebook, Twitter, GitHub, Microsoft, Yahoo, OIDC, SAML) is
 also supported in Cordova/Ionic environments. Additional non-browser
-environments(React Native...) or Chrome extensions will be added once the
+environments (React Native...) or Chrome extensions will be added once the
 underlying Firebase core SDK supports them in a way that is compatible with
 FirebaseUI.
 
@@ -60,8 +60,8 @@ You just need to include the following script and CSS file in the `<head>` tag
 of your page, below the initialization snippet from the Firebase Console:
 
 ```html
-<script src="https://cdn.firebase.com/libs/firebaseui/3.6.1/firebaseui.js"></script>
-<link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.6.1/firebaseui.css" />
+<script src="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.js"></script>
+<link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.css" />
 ```
 
 #### Localized Widget
@@ -70,17 +70,17 @@ Localized versions of the widget are available through the CDN. To use a localiz
 localized JS library instead of the default library:
 
 ```html
-<script src="https://www.gstatic.com/firebasejs/ui/3.6.1/firebase-ui-auth__{LANGUAGE_CODE}.js"></script>
-<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/3.6.1/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth__{LANGUAGE_CODE}.js"></script>
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth.css" />
 ```
 
 where `{LANGUAGE_CODE}` is replaced by the code of the language you want. For example, the French
 version of the library is available at
-`https://www.gstatic.com/firebasejs/ui/3.6.1/firebase-ui-auth__fr.js`. The list of available
+`https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth__fr.js`. The list of available
 languages and their respective language codes can be found at [LANGUAGES.md](LANGUAGES.md).
 
 Right-to-left languages also require the right-to-left version of the stylesheet, available at
-`https://www.gstatic.com/firebasejs/ui/3.6.1/firebase-ui-auth-rtl.css`, instead of the default
+`https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth-rtl.css`, instead of the default
 stylesheet. The supported right-to-left languages are Arabic (ar), Farsi (fa), and Hebrew (iw).
 
 ### Option 2: npm Module
@@ -142,7 +142,7 @@ by default.)
 remembering emails
 7. Integration with
 [one-tap sign-up](https://developers.google.com/identity/one-tap/web/overview)
-8. Ability to upgrade anonymous users through sign-in/sign-up.
+8. Ability to upgrade anonymous users through sign-in/sign-up
 9. Sign-in as a guest
 
 ### Configuring sign-in providers
@@ -195,8 +195,8 @@ for a more in-depth example, showcasing a Single Page Application mode.
        * TODO(DEVELOPER): Paste the initialization snippet from:
        * Firebase Console > Overview > Add Firebase to your web app. *
        ***************************************************************************************** -->
-    <script src="https://cdn.firebase.com/libs/firebaseui/3.6.1/firebaseui.js"></script>
-    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.6.1/firebaseui.css" />
+    <script src="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.css" />
     <script type="text/javascript">
       // FirebaseUI config.
       var uiConfig = {
@@ -305,7 +305,7 @@ Here is how you would track the Auth state across all your pages:
       };
 
       window.addEventListener('load', function() {
-        initApp()
+        initApp();
       });
     </script>
   </head>
@@ -323,9 +323,6 @@ Here is how you would track the Auth state across all your pages:
 
 FirebaseUI supports the following configuration parameters.
 
-<table>
-<thead>
-<tr>
 <table>
 <thead>
 <tr>
@@ -390,7 +387,6 @@ FirebaseUI supports the following configuration parameters.
 </td>
 </tr>
 <tr>
-<tr>
 <td>signInFlow</td>
 <td>No</td>
 <td>
@@ -401,6 +397,17 @@ FirebaseUI supports the following configuration parameters.
 </td>
 </tr>
 <tr>
+<td>immediateFederatedRedirect</td>
+<td>No</td>
+<td>
+  A boolean which determines whether to immediately redirect to the provider's
+  site or instead show the default 'Sign in with Provider' button when there is
+  only a single federated provider in <code>signInOptions</code>. In order for
+  this option to take effect, the <code>signInOptions</code> must only hold a
+  single federated provider (like 'google.com') and signInFlow must be set to
+  'redirect'.
+</td>
+</tr>
 <tr>
 <td>signInOptions</td>
 <td>Yes</td>
@@ -410,7 +417,6 @@ FirebaseUI supports the following configuration parameters.
   on the sign-in provider selection screen.
 </td>
 </tr>
-<tr>
 <tr>
 <td>signInSuccessUrl</td>
 <td>No</td>
@@ -671,7 +677,7 @@ ui.start('#firebaseui-auth-container', {
       providerName: 'Microsoft',
       buttonColor: '#2F2F2F',
       iconUrl: '<icon-url-of-sign-in-button>',
-      loginHintKey: 'login_hint'
+      loginHintKey: 'login_hint',
       scopes: [
         'mail.read'
       ],
@@ -1222,8 +1228,8 @@ FirebaseUI is displayed.
        * TODO(DEVELOPER): Paste the initialization snippet from:
        * Firebase Console > Overview > Add Firebase to your web app. *
        ***************************************************************************************** -->
-    <script src="https://cdn.firebase.com/libs/firebaseui/3.6.1/firebaseui.js"></script>
-    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.6.1/firebaseui.css" />
+    <script src="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.css" />
     <script type="text/javascript">
       // FirebaseUI config.
       var uiConfig = {
@@ -1282,6 +1288,12 @@ FirebaseUI is displayed.
           },
           firebaseui.auth.AnonymousAuthProvider.PROVIDER_ID
         ],
+        // Set to true if you only have a single federated provider like
+        // firebase.auth.GoogleAuthProvider.PROVIDER_ID and you would like to
+        // immediately redirect to the provider's site instead of showing a
+        // 'Sign in with Provider' button first. In order for this to take
+        // effect, the signInFlow option must also be set to 'redirect'.
+        immediateFederatedRedirect: false,
         // tosUrl and privacyPolicyUrl accept either url string or a callback
         // function.
         // Terms of service url/callback.
@@ -1437,6 +1449,42 @@ ui.start('#firebaseui-auth-container', {
 });
 ```
 
+### Multi-tenancy support
+
+For [GCIP](https://cloud.google.com/identity-platform) customers, you can build a
+tenant-specific sign-in page with FirebaseUI. Make sure you've enabled
+multi-tenancy for your project and configured your tenants. See the
+[Multi-tenancy quickstart](https://cloud.google.com/identity-platform/docs/quickstart-multi-tenancy)
+to learn how.
+
+This feature requires [firebase](https://www.npmjs.com/package/firebase) version 6.6.0 or higher.
+
+
+To use FirebaseUI with multi-tenancy, you need to set the tenant ID on the
+Auth instance being passed to FirebaseUI before calling `ui.start()`.
+
+```javascript
+// The Firebase Auth instance.
+var auth = firebase.auth();
+// Initialize FirebaseUI.
+var ui = new firebaseui.auth.AuthUI(auth);
+// Set the tenant ID on Auth instance.
+auth.tenantId = selectedTenantId;
+// Start the sign-in flow in selected tenant.
+// All sign-in attempts will now use this tenant ID.
+ui.start('#firebaseui-auth-container', selectedTenantConfig);
+```
+
+FirebaseUI only handles the sign-in flows for you, you will still need to build
+your own UI to let the end users select a tenant to sign in with.
+You can refer to the example in this
+[guide](https://cloud.google.com/identity-platform/docs/multi-tenancy-ui).
+
+There is also a
+[quickstart](https://github.com/firebase/quickstart-js/blob/master/auth/multi-tenant-ui.html)
+app available to demonstrate how to build a single sign-in page with the
+FirebaseUI for two tenants which have different sets of identity providers enabled.
+
 
 ## Customizing FirebaseUI for authentication
 
@@ -1546,7 +1594,7 @@ cp demo/public/sample-config.js demo/public/config.js
 ```
 
 Copy the data from the "Add Firebase to your web app" flow in Firebase Console.
-Next, run
+Next, run:
 
 ```bash
 npm run demo
@@ -1564,7 +1612,7 @@ All unit tests can be run on the command line (via PhantomJS) with:
 npm test
 ```
 
-Alternatively, the unit tests can be run manually by running
+Alternatively, the unit tests can be run manually by running:
 
 ```bash
 npm run serve

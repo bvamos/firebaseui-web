@@ -22,6 +22,7 @@ goog.provide('firebaseui.auth.widget.handler.common');
 
 goog.require('firebaseui.auth.Account');
 goog.require('firebaseui.auth.PendingEmailCredential');
+goog.require('firebaseui.auth.RedirectStatus');
 goog.require('firebaseui.auth.acClient');
 goog.require('firebaseui.auth.idp');
 goog.require('firebaseui.auth.log');
@@ -213,12 +214,14 @@ firebaseui.auth.widget.handler.common.handleAcEmptyResponse_ = function(
     var continueCallback = function() {
       // Sets pending redirect status before redirect to
       // accountchooser.com.
-      firebaseui.auth.storage.setPendingRedirectStatus(app.getAppId());
+      var redirectStatus = new firebaseui.auth.RedirectStatus(
+          app.getTenantId());
+      firebaseui.auth.storage.setRedirectStatus(redirectStatus, app.getAppId());
       firebaseui.auth.acClient.trySelectAccount(
           function(isAvailable) {
             // Removes the pending redirect status if does not get
             // redirected to accountchooser.com.
-            firebaseui.auth.storage.removePendingRedirectStatus(app.getAppId());
+            firebaseui.auth.storage.removeRedirectStatus(app.getAppId());
             // On empty response, post accountchooser.com result (either empty
             // or unavailable).
             firebaseui.auth.widget.handler.common.accountChooserResult(
@@ -400,125 +403,6 @@ firebaseui.auth.widget.handler.common.selectFromAccountChooser = function(
       undefined,
       goog.LOCALE,
       getApp() && getApp().getConfig().getAcUiConfig());
-};
-
-
-/**
- * Sets the user as signed in.
- *
- * @param {firebaseui.auth.AuthUI} app The current FirebaseUI instance whose
- *     configuration is used and that has a user signed in.
- * @param {firebaseui.auth.ui.page.Base} component The UI component.
- * @param {?firebase.auth.AuthCredential} credential The auth credential
- *     object.
- * @param {?firebase.User=} opt_user The current temporary user, provided if
- *     the user was already signed out from the temporary auth instance.
- * @param {boolean=} opt_alreadySignedIn Whether user already signed in on
- *     external auth instance.
- * @return {!goog.Promise} A promise that resolves on login completion.
- * @package
- */
-firebaseui.auth.widget.handler.common.setLoggedIn =
-    function(app, component, credential, opt_user, opt_alreadySignedIn) {
-  // Revert language code at this point to ensure languageCode changes are
-  // reverted before callbacks are triggered.
-  app.revertLanguageCode();
-  if (!!opt_alreadySignedIn) {
-    // Already signed in on external auth instance.
-    firebaseui.auth.widget.handler.common.setUserLoggedInExternal_(
-        app,
-        component,
-        /** @type {!firebase.User} */ (app.getExternalAuth().currentUser),
-        credential);
-    return goog.Promise.resolve();
-  }
-  // This should not occur.
-  if (!credential) {
-    throw new Error('No credential found!');
-  }
-  var outputCred = credential;
-  // If the passed credential is a password credential, do not return it to the
-  // developer in signInSuccess callback.
-  if (credential['providerId'] &&
-      credential['providerId'] == 'password') {
-    // Do not return password credential to developer.
-    outputCred = null;
-  }
-  // For any error, display in info bar message.
-  var onError = function(error) {
-    // Ignore error if cancelled by the client.
-    if (error['name'] && error['name'] == 'cancel') {
-      return;
-    }
-    // Check if the error was due to an expired credential.
-    // This may happen in the email mismatch case where the user waits more than
-    // an hour and then proceeds to sign in with the expired credential.
-    // Display the relevant error message in this case and return the user to
-    // the sign-in start page.
-    if (firebaseui.auth.widget.handler.common.isCredentialExpired(error)) {
-      var container = component.getContainer();
-      // Dispose any existing component.
-      component.dispose();
-      // Call widget sign-in start handler with the expired credential error.
-      firebaseui.auth.widget.handler.common.handleSignInStart(
-          app,
-          container,
-          undefined,
-          firebaseui.auth.soy2.strings.errorExpiredCredential().toString());
-    } else {
-      var errorMessage = (error && error['message']) || '';
-      if (error['code']) {
-        // Firebase auth error.
-        // Errors thrown by anonymous upgrade should not be displayed in
-        // info bar.
-        if (error['code'] == 'auth/email-already-in-use' ||
-            error['code'] == 'auth/credential-already-in-use') {
-          return;
-        }
-        errorMessage =
-            firebaseui.auth.widget.handler.common.getErrorMessage(error);
-      }
-      // Show error message in the info bar.
-      component.showInfoBar(errorMessage);
-    }
-  };
-  // In some cases like email mismatch, the temporary user may be signed out.
-  // In that case, get the current temporary user directly.
-  var tempUser = app.getAuth().currentUser || opt_user ||
-      app.getExternalAuth().currentUser;
-  if (!tempUser) {
-    // Shouldn't happen as we're only calling this method internally.
-    throw new Error('User not logged in.');
-  }
-  // Save before signing in to developer's auth instance to make sure account
-  // is saved without risking interruption from onAuthStateChanged.
-  var account = new firebaseui.auth.Account(
-      tempUser['email'],
-      tempUser['displayName'],
-      tempUser['photoURL'],
-      outputCred && outputCred['providerId']);
-  // Remember account. If there is no user preference, remember account by
-  // default.
-  if (!firebaseui.auth.storage.hasRememberAccount(app.getAppId()) ||
-      firebaseui.auth.storage.isRememberAccount(app.getAppId())) {
-    firebaseui.auth.storage.rememberAccount(account, app.getAppId());
-  }
-  firebaseui.auth.storage.removeRememberAccount(app.getAppId());
-  // Sign out from internal Auth instance before signing in to external
-  // instance.
-  // Wrap in a promise to ensure the progress bar remains visible until the
-  // underlying signInWithCredential resolves.
-  var signOutAndSignInPromise = app.finishSignInWithCredential(
-      /** @type {!firebase.auth.AuthCredential} */ (credential), tempUser);
-  var signInSuccessPromise = signOutAndSignInPromise
-      .then(function(user) {
-        firebaseui.auth.widget.handler.common.setUserLoggedInExternal_(
-            app, component, user, outputCred);
-      }, onError)
-      // Catch error when signInSuccessUrl is required and not provided.
-      .then(undefined, onError);
-  app.registerPending(signOutAndSignInPromise);
-  return goog.Promise.resolve(signInSuccessPromise);
 };
 
 
@@ -930,11 +814,13 @@ firebaseui.auth.widget.handler.common.getAuthProvider_ = function(
   // set and if the provider supports it, add it to the custom paramaters.
   if (opt_email) {
     var loginHintKey;
+    // Since the name of the parameter is known for Google and GitHub, set this
+    // automatically. Google and GitHub are the only default providers which
+    // support a login hint.
     if (providerId == firebase.auth.GoogleAuthProvider.PROVIDER_ID) {
-      // Since the name of the parameter is known for Google, set this
-      // automatically. Google is the only default provider which supports a
-      // login hint.
       loginHintKey = 'login_hint';
+    } else if (providerId == firebase.auth.GithubAuthProvider.PROVIDER_ID) {
+      loginHintKey = 'login';
     } else {
       // For other providers, check if the name is set in the configuration.
       var providerConfig = app.getConfig().getConfigForProvider(providerId);
@@ -967,7 +853,7 @@ firebaseui.auth.widget.handler.common.federatedSignIn = function(
   var providerSigninFailedCallback = function(error) {
     // Removes the pending redirect status being set previously
     // if sign-in with redirect fails.
-    firebaseui.auth.storage.removePendingRedirectStatus(app.getAppId());
+    firebaseui.auth.storage.removeRedirectStatus(app.getAppId());
     // TODO: align redirect and popup flow error handling for similar errors.
     // Ignore error if cancelled by the client.
     if (error['name'] && error['name'] == 'cancel') {
@@ -976,12 +862,26 @@ firebaseui.auth.widget.handler.common.federatedSignIn = function(
     firebaseui.auth.log.error('signInWithRedirect: ' + error['code']);
     var errorMessage = firebaseui.auth.widget.handler.common.getErrorMessage(
         error);
-    component.showInfoBar(errorMessage);
+    // If the page was previously blank because the 'nascar' screen is being
+    // skipped, then the provider sign-in 'nascar' screen needs to be shown
+    // along with the error message. Otherwise, the error message can simply
+    // be added to the info bar.
+    if (component.getPageId() == 'blank' &&
+        app.getConfig().federatedProviderShouldImmediatelyRedirect()) {
+      component.dispose();
+      firebaseui.auth.widget.handler.handle(
+          firebaseui.auth.widget.HandlerName.PROVIDER_SIGN_IN,
+          app,
+          container,
+          errorMessage);
+    } else {
+      component.showInfoBar(errorMessage);
+    }
   };
   // Error handler for signInWithPopup and getRedirectResult on Cordova.
   var signInResultErrorCallback = function(error) {
     // Clear pending redirect status if redirect on Cordova fails.
-    firebaseui.auth.storage.removePendingRedirectStatus(app.getAppId());
+    firebaseui.auth.storage.removeRedirectStatus(app.getAppId());
     // Ignore error if cancelled by the client.
     if (error['name'] && error['name'] == 'cancel') {
       return;
@@ -1025,7 +925,8 @@ firebaseui.auth.widget.handler.common.federatedSignIn = function(
       app, providerId, opt_email);
   // Redirect processor.
   var processRedirect = function() {
-    firebaseui.auth.storage.setPendingRedirectStatus(app.getAppId());
+    var redirectStatus = new firebaseui.auth.RedirectStatus(app.getTenantId());
+    firebaseui.auth.storage.setRedirectStatus(redirectStatus, app.getAppId());
     app.registerPending(component.executePromiseRequest(
         /** @type {function (): !goog.Promise} */ (
             goog.bind(app.startSignInWithRedirect, app)),
@@ -1046,7 +947,7 @@ firebaseui.auth.widget.handler.common.federatedSignIn = function(
                 component.dispose();
                 // Removes pending redirect status if sign-in with redirect
                 // resolves in Cordova environment.
-                firebaseui.auth.storage.removePendingRedirectStatus(
+                firebaseui.auth.storage.removeRedirectStatus(
                     app.getAppId());
                 firebaseui.auth.widget.handler.handle(
                     firebaseui.auth.widget.HandlerName.CALLBACK,
@@ -1399,8 +1300,18 @@ firebaseui.auth.widget.handler.common.handleSignInStart = function(
     // which would trigger an info bar message.
     firebaseui.auth.widget.handler.handle(
         firebaseui.auth.widget.HandlerName.PHONE_SIGN_IN_START, app, container);
+  } else if (app &&
+      app.getConfig().federatedProviderShouldImmediatelyRedirect() &&
+      !opt_infoBarMessage) {
+    // If there is an info bar message available, the 'nascar' screen cannot be
+    // skipped since the message or error must be shown to the user.
+    firebaseui.auth.widget.handler.handle(
+        firebaseui.auth.widget.HandlerName.FEDERATED_REDIRECT,
+        app,
+        container);
   } else {
-    // For all other cases, show the provider sign-in screen.
+    // For all other cases, show the provider sign-in screen along with any
+    // info bar messages that need to be shown to the user.
     firebaseui.auth.widget.handler.handle(
         firebaseui.auth.widget.HandlerName.PROVIDER_SIGN_IN,
         app,
@@ -1649,12 +1560,15 @@ firebaseui.auth.widget.handler.common.handleSignInWithEmail =
             var continueCallback = function() {
               // Sets pending redirect status before redirect to
               // accountchooser.com.
-              firebaseui.auth.storage.setPendingRedirectStatus(app.getAppId());
+              var redirectStatus = new firebaseui.auth.RedirectStatus(
+                  app.getTenantId());
+              firebaseui.auth.storage.setRedirectStatus(
+                  redirectStatus, app.getAppId());
               firebaseui.auth.acClient.trySelectAccount(
                   function(isAvailable) {
                     // Removes the pending redirect status if does not get
                     // redirected to accountchooser.com.
-                    firebaseui.auth.storage.removePendingRedirectStatus(
+                    firebaseui.auth.storage.removeRedirectStatus(
                         app.getAppId());
                     // On empty response, post accountchooser.com result (either
                     // empty or unavailable).
