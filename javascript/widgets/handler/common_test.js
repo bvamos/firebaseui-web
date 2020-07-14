@@ -21,7 +21,6 @@ goog.setTestOnly('firebaseui.auth.widget.handler.CommonTest');
 goog.require('firebaseui.auth.Account');
 goog.require('firebaseui.auth.AuthUI');
 goog.require('firebaseui.auth.AuthUIError');
-goog.require('firebaseui.auth.CredentialHelper');
 goog.require('firebaseui.auth.PendingEmailCredential');
 goog.require('firebaseui.auth.RedirectStatus');
 goog.require('firebaseui.auth.idp');
@@ -49,6 +48,7 @@ goog.require('firebaseui.auth.widget.handler.handleSignIn');
 goog.require('firebaseui.auth.widget.handler.testHelper');
 goog.require('goog.Promise');
 goog.require('goog.dom.forms');
+goog.require('goog.net.jsloader');
 goog.require('goog.testing.AsyncTestCase');
 goog.require('goog.testing.recordFunction');
 
@@ -1504,7 +1504,7 @@ function testSelectFromAccountChooser_acCallbacks_unavailable() {
   // accountchooser.com callbacks provided.
   // Test when accountchooser.com is unavailable.
   app.setConfig({
-    'credentialHelper': firebaseui.auth.CredentialHelper.NONE,
+    'credentialHelper': firebaseui.auth.widget.Config.CredentialHelper.NONE,
     'callbacks': {
       'accountChooserResult': accountChooserResultCallback,
       'accountChooserInvoked': accountChooserInvokedCallback
@@ -1881,7 +1881,7 @@ function testHandleSignInWithEmail_acNotEnabled() {
       'setRedirectStatus',
       goog.testing.recordFunction());
   app.setConfig({
-    'credentialHelper': firebaseui.auth.CredentialHelper.NONE
+    'credentialHelper': firebaseui.auth.widget.Config.CredentialHelper.NONE
   });
   firebaseui.auth.widget.handler.common.acForceUiShown_ = true;
   firebaseui.auth.widget.handler.common.handleSignInWithEmail(app, container);
@@ -1892,6 +1892,110 @@ function testHandleSignInWithEmail_acNotEnabled() {
   assertFalse(firebaseui.auth.storage.hasRememberAccount(app.getAppId()));
   assertFalse(firebaseui.auth.widget.handler.common.acForceUiShown_);
 }
+
+
+function testHandleSignInWithEmail_accountChooserNotFound() {
+  // This tests when accountchooser.com JS dependency fails to load
+  // that the flow continues to work as expected. This test is needed
+  // to confirm that after accountchooser.com is shutdown, the library
+  // continues to work.
+
+  // This is the actual error that gets thrown when jsloader fails to load.
+  const expectedError = new Error(
+      'Jsloader error (code #0): Error while loading script ' +
+      '//www.gstatic.com/accountchooser/client.js');
+  // Uninstall mock acClient. It is better to test the real thing to ensure
+  // that when the dependency fails to load, the flow will continue to work.
+  testAc.uninstall();
+  firebaseui.auth.widget.handler.common.resetAcLoader();
+  // Track that loading error is triggered.
+  let errorTriggered = false;
+  // Simulate accountchooser.com dependency not found and jsloader failing.
+  testStubs.reset();
+  // Assume widget already rendered and AuthUI global reference set.
+  testStubs.replace(firebaseui.auth.AuthUI, 'getAuthUi', function() {
+    return app;
+  });
+  testStubs.set(firebaseui.auth.util, 'supportsCors', function() {
+    return true;
+  });
+  // Simulate the loading error.
+  testStubs.replace(
+      goog.net.jsloader, 'safeLoad', function() {
+        errorTriggered = true;
+        return goog.Promise.reject(expectedError);
+      });
+
+  // Start sign-in with email handler.
+  // signIn page should be rendered despite accountchooser.com JS dependencies
+  // failing to load.
+  app.setConfig({
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.ACCOUNT_CHOOSER_COM,
+  });
+  firebaseui.auth.widget.handler.common.handleSignInWithEmail(app, container);
+  asyncTestCase.waitForSignals(1);
+
+  // Wait 2 cycles to give enough time for logic to run.
+  return goog.Promise.resolve().then(() => {
+    return goog.Promise.resolve();
+  }).then(() => {
+    // Confirm error triggered.
+    assertTrue(errorTriggered);
+    // signIn page should be rendered.
+    assertSignInPage();
+    asyncTestCase.signal();
+  });
+}
+
+
+function testHandleSignInWithEmail_prefillEmail() {
+  const prefilledEmail = 'user@example';
+  testStubs.replace(
+      firebaseui.auth.storage,
+      'setRedirectStatus',
+      goog.testing.recordFunction());
+  app.setConfig({
+    'credentialHelper': firebaseui.auth.widget.Config.CredentialHelper.NONE
+  });
+  firebaseui.auth.widget.handler.common.acForceUiShown_ = true;
+  firebaseui.auth.widget.handler.common.handleSignInWithEmail(
+      app, container, prefilledEmail);
+  assertBlankPage();
+  /** @suppress {missingRequire} */
+  assertEquals(0,
+      firebaseui.auth.storage.setRedirectStatus.getCallCount());
+  assertFalse(firebaseui.auth.storage.hasRememberAccount(app.getAppId()));
+  assertFalse(firebaseui.auth.widget.handler.common.acForceUiShown_);
+
+  testAuth.assertFetchSignInMethodsForEmail(
+      [prefilledEmail],
+      []);
+  return testAuth.process().then(() => {
+    // Password sign-up page should be shown.
+    assertPasswordSignUpPage();
+    // The prefilled email should be populated in the email entry.
+    assertEquals(prefilledEmail, getEmailElement().value);
+    return testAuth.process();
+  });
+}
+
+
+function testHandleSignInFetchSignInMethodsForEmail_unsupportedProvider() {
+  // When user has previously signed in with email link but only email/password
+  // auth is supported in the app's configuration.
+  var signInMethods = ['emailLink'];
+  var email = 'user@example.com';
+  app.updateConfig('signInOptions',  [{'provider': 'password'}]);
+  firebaseui.auth.widget.handler.common.handleSignInFetchSignInMethodsForEmail(
+      app, container, signInMethods, email);
+  // It should not store pending email.
+  assertFalse(firebaseui.auth.storage.hasPendingEmailCredential(
+        app.getAppId()));
+  // Unsupported provider page should show.
+  assertUnsupportedProviderPage(email);
+}
+
 
 function testLoadAccountchooserJs_externallyLoaded() {
   // Test accountchooser.com client loading when already loaded.
@@ -2077,6 +2181,28 @@ function testFederatedSignIn_success_redirectMode() {
   // Confirm signInWithRedirect called underneath.
   testAuth.assertSignInWithRedirect([expectedProvider]);
   testAuth.process();
+
+}
+
+
+function testFederatedSignIn_success_redirectMode_tenantId() {
+  app.setTenantId('TENANT_ID');
+  var expectedProvider = firebaseui.auth.idp.getAuthProvider('google.com');
+  var component = new firebaseui.auth.ui.page.ProviderSignIn(
+      goog.nullFunction(), []);
+  component.render(container);
+  assertFalse(firebaseui.auth.storage.hasRedirectStatus(app.getAppId()));
+  // This will trigger a signInWithRedirect using the expected provider.
+  firebaseui.auth.widget.handler.common.federatedSignIn(
+      app, component, 'google.com');
+  assertTrue(firebaseui.auth.storage.hasRedirectStatus(app.getAppId()));
+  assertEquals(
+      'TENANT_ID',
+      firebaseui.auth.storage.getRedirectStatus(app.getAppId()).getTenantId());
+  assertProviderSignInPage();
+  // Confirm signInWithRedirect called underneath.
+  testAuth.assertSignInWithRedirect([expectedProvider]);
+  testAuth.process();
 }
 
 
@@ -2126,7 +2252,7 @@ function testFederatedSignIn_error_redirectMode() {
 
 function testFederatedSignIn_success_cordova() {
   simulateCordovaEnvironment();
-  var cred  = firebaseui.auth.idp.getAuthCredential({
+  var cred  = createMockCredential({
     'providerId': 'google.com',
     'accessToken': 'ACCESS_TOKEN'
   });
@@ -2314,7 +2440,7 @@ function testFederatedSignIn_anonymousUpgrade_success_cordova() {
   simulateCordovaEnvironment();
   app.updateConfig('autoUpgradeAnonymousUsers', true);
   externalAuth.setUser(anonymousUser);
-  var cred  = firebaseui.auth.idp.getAuthCredential({
+  var cred  = createMockCredential({
     'providerId': 'google.com',
     'accessToken': 'ACCESS_TOKEN'
   });
@@ -2366,7 +2492,7 @@ function testFederatedSignIn_anonymousUpgrade_credInUse_error_cordova() {
   simulateCordovaEnvironment();
   app.updateConfig('autoUpgradeAnonymousUsers', true);
   externalAuth.setUser(anonymousUser);
-  var cred  = firebaseui.auth.idp.getAuthCredential({
+  var cred  = createMockCredential({
     'providerId': 'google.com',
     'accessToken': 'ACCESS_TOKEN'
   });
@@ -2417,7 +2543,7 @@ function testFederatedSignIn_anonymousUpgrade_emailInUse_error_cordova() {
   simulateCordovaEnvironment();
   app.updateConfig('autoUpgradeAnonymousUsers', true);
   externalAuth.setUser(anonymousUser);
-  var cred  = firebaseui.auth.idp.getAuthCredential({
+  var cred  = createMockCredential({
     'providerId': 'google.com',
     'accessToken': 'ACCESS_TOKEN'
   });
@@ -2557,10 +2683,10 @@ function testHandleGoogleYoloCredential_handledSuccessfully_withScopes() {
       'provider': 'google.com',
       'scopes': ['googl1', 'googl2'],
       'customParameters': {'prompt': 'select_account'},
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
@@ -2587,10 +2713,10 @@ function testHandleGoogleYoloCredential_handledSuccessfully_withoutScopes() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
@@ -2607,10 +2733,10 @@ function testHandleGoogleYoloCredential_handledSuccessfully_withoutScopes() {
         asyncTestCase.signal();
       });
   var expectedCredential = firebase.auth.GoogleAuthProvider.credential(
-      googleYoloIdTokenCredential.idToken);
+      googleYoloIdTokenCredential.credential);
   var cred  = createMockCredential({
     'providerId': 'google.com',
-    'idToken': googleYoloIdTokenCredential.idToken
+    'idToken': googleYoloIdTokenCredential.credential
   });
   testAuth.setUser({
     'email': federatedAccount.getEmail(),
@@ -2651,10 +2777,10 @@ function testHandleGoogleYoloCredential_unhandled_withoutScopes() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
@@ -2670,7 +2796,7 @@ function testHandleGoogleYoloCredential_unhandled_withoutScopes() {
         asyncTestCase.signal();
       });
   var expectedCredential = firebase.auth.GoogleAuthProvider.credential(
-      googleYoloIdTokenCredential.idToken);
+      googleYoloIdTokenCredential.credential);
   // Confirm signInWithCredential called underneath with
   // unsuccessful response.
   testAuth.assertSignInWithCredential(
@@ -2693,10 +2819,10 @@ function testHandleGoogleYoloCredential_cancelled_withoutScopes() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
@@ -2724,10 +2850,10 @@ function testHandleGoogleYoloCredential_unsupportedCredential() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
@@ -2757,13 +2883,13 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_noScopes() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var expectedCredential = firebase.auth.GoogleAuthProvider.credential(
-      googleYoloIdTokenCredential.idToken);
+      googleYoloIdTokenCredential.credential);
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
   component.render(container);
@@ -2817,13 +2943,13 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_credentialInUse() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var expectedCredential = firebase.auth.GoogleAuthProvider.credential(
-      googleYoloIdTokenCredential.idToken);
+      googleYoloIdTokenCredential.credential);
   // Expected linkWithCredential error.
   var expectedError = {
     'code': 'auth/credential-already-in-use',
@@ -2873,13 +2999,13 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_fedEmailInUse() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var expectedCredential = firebase.auth.GoogleAuthProvider.credential(
-      googleYoloIdTokenCredential.idToken);
+      googleYoloIdTokenCredential.credential);
   // Expected linkWithCredential error.
   var expectedError = {
     'code': 'auth/email-already-in-use',
@@ -2890,7 +3016,7 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_fedEmailInUse() {
   var pendingEmailCred = new firebaseui.auth.PendingEmailCredential(
       federatedAccount.getEmail(),
       firebase.auth.GoogleAuthProvider.credential(
-          googleYoloIdTokenCredential.idToken, null));
+          googleYoloIdTokenCredential.credential, null));
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
   component.render(container);
@@ -2940,13 +3066,13 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_passEmailInUse() {
     'signInSuccessUrl': 'http://localhost/home',
     'signInOptions': [{
       'provider': 'google.com',
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var expectedCredential = firebase.auth.GoogleAuthProvider.credential(
-      googleYoloIdTokenCredential.idToken);
+      googleYoloIdTokenCredential.credential);
   // Expected linkWithCredential error.
   var expectedError = {
     'code': 'auth/email-already-in-use',
@@ -2957,7 +3083,7 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_passEmailInUse() {
   var pendingEmailCred = new firebaseui.auth.PendingEmailCredential(
       federatedAccount.getEmail(),
       firebase.auth.GoogleAuthProvider.credential(
-          googleYoloIdTokenCredential.idToken, null));
+          googleYoloIdTokenCredential.credential, null));
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);
   component.render(container);
@@ -3017,10 +3143,10 @@ function testHandleGoogleYoloCredential_upgradeAnonymous_withScopes() {
       'provider': 'google.com',
       'scopes': ['googl1', 'googl2'],
       'customParameters': {'prompt': 'select_account'},
-      'authMethod': 'https://accounts.google.com',
-      'clientId': '1234567890.apps.googleusercontent.com'
+      'clientId': googYoloClientId,
     }, 'facebook.com', 'password', 'phone'],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   });
   var component = new firebaseui.auth.ui.page.ProviderSignIn(
       goog.nullFunction(), []);

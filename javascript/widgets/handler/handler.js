@@ -25,7 +25,6 @@ goog.require('goog.asserts');
 goog.forwardDeclare('firebaseui.auth.AuthUI');
 
 
-
 /**
  * Handler names.
  * @enum {string}
@@ -56,7 +55,10 @@ firebaseui.auth.widget.HandlerName = {
   PASSWORD_RESET: 'passwordReset',
   EMAIL_MISMATCH: 'emailMismatch',
   PROVIDER_SIGN_IN: 'providerSignIn',
-  UNSUPPORTED_PROVIDER: 'unsupportedProvider'
+  PREFILLED_EMAIL_SIGN_IN: 'prefilledEmailSignIn',
+  UNSUPPORTED_PROVIDER: 'unsupportedProvider',
+  VERIFY_AND_CHANGE_EMAIL: 'verifyAndChangeEmail',
+  REVERT_SECOND_FACTOR_ADDITION: 'revertSecondFactorAddition',
 };
 
 

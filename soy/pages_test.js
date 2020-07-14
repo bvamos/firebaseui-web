@@ -30,19 +30,52 @@ goog.require('goog.testing.jsunit');
 
 
 var IJ_DATA_ = {
-  'googleLogo': '../image/google.svg',
-  'githubLogo': '../image/github.svg',
-  'facebookLogo': '../image/facebook.svg',
-  'twitterLogo': '../image/twitter.svg',
-  'passwordLogo': '../image/mail.svg',
-  'phoneLogo': '../image/phone.svg',
-  'anonymousLogo': '../image/anonymous.png',
+  'defaultIconUrls': {
+    'google.com': '../image/google.svg',
+    'github.com': '../image/github.svg',
+    'facebook.com': '../image/facebook.svg',
+    'twitter.com': '../image/twitter.svg',
+    'password': '../image/mail.svg',
+    'phone': '../image/phone.svg',
+    'anonymous': '../image/anonymous.svg',
+    'microsoft.com': '../image/microsoft.svg',
+    'yahoo.com': '../image/yahoo.svg',
+    'apple.com': '../image/apple.svg',
+    'saml': '../image/saml.svg',
+    'oidc': '../image/oidc.svg',
+  },
+  'defaultButtonColors': {
+    'google.com': '#ffffff',
+    'github.com': '#333333',
+    'facebook.com': '#3b5998',
+    'twitter.com': '#55acee',
+    'password': '#db4437',
+    'phone': '#02bd7e',
+    'anonymous': '#f4b400',
+    'microsoft.com': '#2F2F2F',
+    'yahoo.com': '#720E9E',
+    'apple.com': '#000000',
+    'saml': '#007bff',
+    'oidc': '#007bff',
+  },
+  'defaultProviderNames': {
+    'google.com': 'Google',
+    'github.com': 'GitHub',
+    'facebook.com': 'Facebook',
+    'twitter.com': 'Twitter',
+    'password': 'Password',
+    'phone': 'Phone',
+    'anonymous': 'Guest',
+    'microsoft.com': 'Microsoft',
+    'yahoo.com': 'Yahoo',
+    'apple.com': 'Apple',
+  },
   'tosCallback': function() {
     window.location.assign('/tos');
   },
   'privacyPolicyCallback': function() {
     window.location.assign('/privacyPolicy');
-  }
+  },
 };
 
 
@@ -193,6 +226,13 @@ function testBlank_busy() {
   var busy = goog.soy.renderAsElement(
       firebaseui.auth.soy2.element.busyIndicator, {useSpinner: true});
   root.children[0].appendChild(busy);
+}
+
+
+function testSpinner() {
+  var root = goog.dom.getElement('spinner');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.spinner, {}, IJ_DATA_);
 }
 
 
@@ -436,6 +476,118 @@ function testEmailVerificationFailureNoContinue() {
 }
 
 
+function testVerifyAndChangeEmailSuccess() {
+  var root = goog.dom.getElement('verify-and-change-email-success');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.verifyAndChangeEmailSuccess,
+      {'email': 'user@example.com', 'allowContinue': true});
+}
+
+
+function testVerifyAndChangeEmailSuccessNoContinue() {
+  var root = goog.dom.getElement('verify-and-change-email-success-no-continue');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.verifyAndChangeEmailSuccess,
+      {'email': 'user@example.com', 'allowContinue': false});
+}
+
+
+function testVerifyAndChangeEmailFailure() {
+  var root = goog.dom.getElement('verify-and-change-email-failure');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.verifyAndChangeEmailFailure,
+      {'allowContinue': true});
+}
+
+
+function testVerifyAndChangeEmailFailureNoContinue() {
+  var root = goog.dom.getElement('verify-and-change-email-failure-no-continue');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.verifyAndChangeEmailFailure,
+      {'allowContinue': false});
+}
+
+
+function testRevertSecondFactorAdditionSuccessPhone() {
+  var root = goog.dom.getElement('revert-second-factor-addition-success-phone');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.revertSecondFactorAdditionSuccess,
+      {
+        'factorId': 'phone',
+        'phoneNumber': '+*******1234',
+        'allowContinue': true
+      });
+}
+
+
+function testRevertSecondFactorAdditionSuccessDefault() {
+  var root = goog.dom.getElement(
+      'revert-second-factor-addition-success-default');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.revertSecondFactorAdditionSuccess,
+      {
+        'factorId': 'unknown',
+        'allowContinue': true
+      });
+}
+
+
+function testRevertSecondFactorAdditionSuccessNoContinue() {
+  var root = goog.dom.getElement(
+      'revert-second-factor-addition-success-no-continue');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.revertSecondFactorAdditionSuccess,
+      {
+        'factorId': 'phone',
+        'phoneNumber': '+*******1234',
+        'allowContinue': false
+      });
+}
+
+
+function testRevertSecondFactorAdditionFailure() {
+  var root = goog.dom.getElement('revert-second-factor-addition-failure');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.revertSecondFactorAdditionFailure,
+      {'allowContinue': true});
+}
+
+
+function testRevertSecondFactorAdditionFailureNoContinue() {
+  var root = goog.dom.getElement(
+      'revert-second-factor-addition-failure-no-continue');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.revertSecondFactorAdditionFailure,
+      {'allowContinue': false});
+}
+
+
+function testRecoverableError() {
+  var root = goog.dom.getElement('recoverable-error');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.recoverableError,
+      {
+        'errorMessage': 'A network error (such as timeout, interrupted ' +
+            'connection or unreachable host) has occurred.',
+        'allowRetry': true
+      },
+      IJ_DATA_);
+}
+
+
+function testRecoverableError_noRetryButton() {
+  var root = goog.dom.getElement('recoverable-error-no-retry-button');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.recoverableError,
+      {
+        'errorMessage': 'A network error (such as timeout, interrupted ' +
+            'connection or unreachable host) has occurred.',
+        'allowRetry': false
+      },
+      IJ_DATA_);
+}
+
+
 function testUnrecoverableError() {
   var root = goog.dom.getElement('unrecoverable-error');
   goog.soy.renderElement(root, firebaseui.auth.soy2.page.unrecoverableError, {
@@ -484,7 +636,8 @@ function testProviderSignIn() {
             providerId: 'microsoft.com',
             providerName: 'Microsoft',
             buttonColor: '#FFB6C1',
-            iconUrl: 'icon-url'
+            iconUrl: 'icon-url',
+            loginHintKey: 'login_hint'
           }]
       },
       IJ_DATA_);
@@ -590,4 +743,50 @@ function testPhoneSignInFinish_noTos() {
       {
         phoneNumber: '+13115552368'
       }, IJ_DATA_);
+}
+
+
+function testSignOut() {
+  var root = goog.dom.getElement('sign-out');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.signOut, {}, IJ_DATA_);
+}
+
+
+function testTenantSelect() {
+  const root = goog.dom.getElement('select-tenant');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.selectTenant, {
+        tenantConfigs: [
+          {
+            tenantId: 'TENANT_ID',
+            displayName: 'Contractor A',
+            buttonColor: '#FFB6C1',
+            iconUrl: 'icon-url',
+          },
+          {
+            tenantId: null,
+            displayName: 'ACME',
+            buttonColor: '#53B2BF',
+            iconUrl: 'icon-url',
+          }],
+      },
+      IJ_DATA_);
+}
+
+
+function testTenantSelect_noTenants() {
+  const root = goog.dom.getElement('select-tenant-no-tenants');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.selectTenant, {
+        tenantConfigs: [],
+      },
+      IJ_DATA_);
+}
+
+
+function testProviderMatchByEmail() {
+  var root = goog.dom.getElement('provider-match-by-email');
+  goog.soy.renderElement(
+      root, firebaseui.auth.soy2.page.providerMatchByEmail, {}, IJ_DATA_);
 }

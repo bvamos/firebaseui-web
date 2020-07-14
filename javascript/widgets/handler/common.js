@@ -16,7 +16,6 @@
  * @fileoverview Common functions shared by handlers.
  */
 
-goog.provide('firebaseui.auth.AuthResult');
 goog.provide('firebaseui.auth.OAuthResponse');
 goog.provide('firebaseui.auth.widget.handler.common');
 
@@ -59,17 +58,6 @@ firebaseui.auth.OAuthResponse;
 
 
 /**
- * @typedef {{
- *   user: (?firebase.User),
- *   credential: (?firebase.auth.AuthCredential),
- *   operationType: (?string|undefined),
- *   additionalUserInfo: (?firebase.auth.AdditionalUserInfo|undefined)
- * }}
- */
-firebaseui.auth.AuthResult;
-
-
-/**
  * @define {string} The accountchooser.com client library URL.
  */
 var ACCOUNTCHOOSER_SRC = '//www.gstatic.com/accountchooser/client.js';
@@ -89,6 +77,14 @@ firebaseui.auth.widget.handler.common.acForceUiShown_ = false;
  */
 firebaseui.auth.widget.handler.common.acLoader_ = null;
 
+/**
+ * Resets accountchooser.com loader and removes global accountchooser namespace.
+ * This is useful for testing.
+ */
+firebaseui.auth.widget.handler.common.resetAcLoader = function() {
+  firebaseui.auth.widget.handler.common.acLoader_ = null;
+  goog.global['accountchooser'] = undefined;
+};
 
 /**
  * Loads the accountchooser.com client library if it is not loaded before and
@@ -414,9 +410,9 @@ firebaseui.auth.widget.handler.common.selectFromAccountChooser = function(
  * @param {firebaseui.auth.AuthUI} app The current FirebaseUI instance whose
  *     configuration is used and that has a user signed in.
  * @param {firebaseui.auth.ui.page.Base} component The UI component.
- * @param {!firebaseui.auth.AuthResult} authResult The Auth result, which
- *     includes current user, credential to sign in to external Auth instance,
- *     additional user info and operation type.
+ * @param {!firebaseui.auth.widget.Config.AuthResult} authResult The Auth
+ *     result, which includes current user, credential to sign in to external
+ *     Auth instance, additional user info and operation type.
  * @param {boolean=} opt_alreadySignedIn Whether user already signed in on
  *     external Auth instance. If true, current user on external Auth instance
  *     should be passed in from Auth result. Should be true for anonymous
@@ -614,9 +610,9 @@ firebaseui.auth.widget.handler.common.setUserLoggedInExternal_ =
  * @param {firebaseui.auth.AuthUI} app The current FirebaseUI instance whose
  *     configuration is used and that has a user signed in.
  * @param {firebaseui.auth.ui.page.Base} component The UI component.
- * @param {!firebaseui.auth.AuthResult} authResult The Auth result, which
- *     includes current user, credential to sign in to external Auth instance,
- *     additional user info and operation type.
+ * @param {!firebaseui.auth.widget.Config.AuthResult} authResult The Auth
+ *     result, which includes current user, credential to sign in to external
+ *     Auth instance, additional user info and operation type.
  * @private
  */
 firebaseui.auth.widget.handler.common.setUserLoggedInExternalWithAuthResult_ =
@@ -861,7 +857,7 @@ firebaseui.auth.widget.handler.common.federatedSignIn = function(
     }
     firebaseui.auth.log.error('signInWithRedirect: ' + error['code']);
     var errorMessage = firebaseui.auth.widget.handler.common.getErrorMessage(
-        error);
+          error);
     // If the page was previously blank because the 'nascar' screen is being
     // skipped, then the provider sign-in 'nascar' screen needs to be shown
     // along with the error message. Otherwise, the error message can simply
@@ -998,7 +994,8 @@ firebaseui.auth.widget.handler.common.handleSignInAnonymously = function(
         return firebaseui.auth.widget.handler.common.setLoggedInWithAuthResult(
             app,
             component,
-            /** @type {!firebaseui.auth.AuthResult} */(userCredential),
+            /** @type {!firebaseui.auth.widget.Config.AuthResult} */(
+                userCredential),
             true);
       },
       function(error) {
@@ -1101,22 +1098,32 @@ firebaseui.auth.widget.handler.common.handleGoogleYoloCredential =
         app, component, providerId, opt_email);
     return goog.Promise.resolve(true);
   };
-  var providerId = app.getConfig().getProviderIdFromAuthMethod(
-      (credential && credential.authMethod) || null);
   // ID token credential available and supported Firebase Auth provider also
   // available.
-  if (credential && credential.idToken &&
-      providerId === firebase.auth.GoogleAuthProvider.PROVIDER_ID) {
+  if (credential &&
+      credential.credential &&
+      credential.clientId === app.getConfig().getGoogleYoloClientId()) {
     // ID token available.
     // Only Google has API to sign-in with an ID token.
     if (app.getConfig().getProviderAdditionalScopes(
             firebase.auth.GoogleAuthProvider.PROVIDER_ID).length) {
+      let email;
+      try {
+        // New one-tap API does not return the credential identitifer.
+        // Parse email from Google ID token.
+        const components  = credential.credential.split('.');
+        const payloadDecoded = JSON.parse(atob(components[1]));
+        email = payloadDecoded['email'];
+      } catch (e) {
+        // Ignore
+      }
       // Scopes available, OAuth flow with additional scopes required.
-      return signInWithProvider(providerId, credential.id);
+      return signInWithProvider(
+          firebase.auth.GoogleAuthProvider.PROVIDER_ID, email);
     } else {
       // Scopes not requested. Sign in with ID token directly.
       return signInWithCredential(firebase.auth.GoogleAuthProvider.credential(
-          credential.idToken));
+          credential.credential));
     }
   } else if (credential) {
     // Unsupported credential.
@@ -1179,14 +1186,15 @@ firebaseui.auth.widget.handler.common.verifyPassword =
           goog.bind(app.startSignInWithEmailAndPassword, app)),
       [email, password],
       function(userCredential) {
-        var authResult = /** @type {!firebaseui.auth.AuthResult} */ ({
-          'user': userCredential['user'],
-          // Password credential is needed to complete sign-in to the original
-          // Auth instance.
-          'credential': emailPassCred,
-          'operationType': userCredential['operationType'],
-          'additionalUserInfo': userCredential['additionalUserInfo']
-        });
+        var authResult = (
+            /** @type {!firebaseui.auth.widget.Config.AuthResult} */ ({
+              'user': userCredential['user'],
+              // Password credential is needed to complete sign-in to the
+              // original Auth instance.
+              'credential': emailPassCred,
+              'operationType': userCredential['operationType'],
+              'additionalUserInfo': userCredential['additionalUserInfo']
+            }));
         return firebaseui.auth.widget.handler.common.setLoggedInWithAuthResult(
             app, component, authResult);
       },
@@ -1267,34 +1275,34 @@ firebaseui.auth.widget.handler.common.isPhoneProviderOnly = function(app) {
 /**
  * Calls the appropriate sign-in start handler depending on display mode.
  *
- * @param {firebaseui.auth.AuthUI} app The current FirebaseUI instance whose
+ * @param {?firebaseui.auth.AuthUI} app The current FirebaseUI instance whose
  *     configuration is used.
- * @param {Element} container The container DOM element.
- * @param {string=} opt_email The email to prefill.
- * @param {string=} opt_infoBarMessage The message to show on info bar.
+ * @param {?Element} container The container DOM element.
+ * @param {string=} email The optional email to prefill.
+ * @param {string=} infoBarMessage The optional message to show on info bar.
  */
 firebaseui.auth.widget.handler.common.handleSignInStart = function(
-    app, container, opt_email, opt_infoBarMessage) {
+    app, container, email = undefined, infoBarMessage = undefined) {
   if (firebaseui.auth.widget.handler.common.isPasswordProviderOnly(app)) {
     // If info bar message is available, do not go to accountchooser.com since
     // this is a result of some error in the flow and the error message must be
     // displayed.
-    if (opt_infoBarMessage) {
+    if (infoBarMessage) {
       firebaseui.auth.widget.handler.handle(
           firebaseui.auth.widget.HandlerName.SIGN_IN,
           app,
           container,
-          opt_email,
-          opt_infoBarMessage);
+          email,
+          infoBarMessage);
     } else {
       // Email auth provider is the only option, trigger that flow immediately
       // instead of just showing a single sign-in with email button.
       firebaseui.auth.widget.handler.common.handleSignInWithEmail(
-          app, container, opt_email);
+          app, container, email);
     }
   } else if (
       app && firebaseui.auth.widget.handler.common.isPhoneProviderOnly(app) &&
-      !opt_infoBarMessage) {
+      !infoBarMessage) {
     // Avoid an infinite loop by only skipping to phone auth if there's no
     // error on phone auth rendering, eg recaptcha error when network down,
     // which would trigger an info bar message.
@@ -1302,13 +1310,14 @@ firebaseui.auth.widget.handler.common.handleSignInStart = function(
         firebaseui.auth.widget.HandlerName.PHONE_SIGN_IN_START, app, container);
   } else if (app &&
       app.getConfig().federatedProviderShouldImmediatelyRedirect() &&
-      !opt_infoBarMessage) {
+      !infoBarMessage) {
     // If there is an info bar message available, the 'nascar' screen cannot be
     // skipped since the message or error must be shown to the user.
     firebaseui.auth.widget.handler.handle(
         firebaseui.auth.widget.HandlerName.FEDERATED_REDIRECT,
         app,
-        container);
+        container,
+        email);
   } else {
     // For all other cases, show the provider sign-in screen along with any
     // info bar messages that need to be shown to the user.
@@ -1316,7 +1325,8 @@ firebaseui.auth.widget.handler.common.handleSignInStart = function(
         firebaseui.auth.widget.HandlerName.PROVIDER_SIGN_IN,
         app,
         container,
-        opt_infoBarMessage);
+        infoBarMessage,
+        email);
   }
 };
 
@@ -1425,19 +1435,29 @@ firebaseui.auth.widget.handler.common.handleSignInFetchSignInMethodsForEmail =
         opt_displayFullTosPpMessage);
   } else if ((signInMethods.length == 1) && (signInMethods[0] ===
       firebase.auth.EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD)) {
-    // Existing email link account.
-    firebaseui.auth.widget.handler.handle(
-        firebaseui.auth.widget.HandlerName.SEND_EMAIL_LINK_FOR_SIGN_IN,
-        app,
-        container,
-        email,
-        function() {
-          // Clicking back button goes back to sign in page.
-          firebaseui.auth.widget.handler.handle(
-              firebaseui.auth.widget.HandlerName.SIGN_IN,
-              app,
-              container);
-        });
+    if (app.getConfig().isEmailLinkSignInAllowed()) {
+      // Existing email link account.
+      firebaseui.auth.widget.handler.handle(
+          firebaseui.auth.widget.HandlerName.SEND_EMAIL_LINK_FOR_SIGN_IN,
+          app,
+          container,
+          email,
+          function() {
+            // Clicking back button goes back to sign in page.
+            firebaseui.auth.widget.handler.handle(
+                firebaseui.auth.widget.HandlerName.SIGN_IN,
+                app,
+                container);
+          });
+    } else {
+      // Email link sign-in is the only option for this user but it is not
+      // supported in the current app configuration.
+      firebaseui.auth.widget.handler.handle(
+          firebaseui.auth.widget.HandlerName.UNSUPPORTED_PROVIDER,
+          app,
+          container,
+          email);
+    }
   } else {
     // Federated Account.
     // The account exists, and is a federated identity account.
@@ -1466,6 +1486,7 @@ firebaseui.auth.widget.handler.common.handleSignInFetchSignInMethodsForEmail =
           email);
     }
   }
+
 };
 
 
@@ -1527,12 +1548,19 @@ firebaseui.auth.widget.handler.common.handleSignInWithEmail =
           firebaseui.auth.widget.Config.AccountChooserResult.UNAVAILABLE,
           function() {
             // If not available, go to the sign-in screen and no UI
-            // shown callback.
-            firebaseui.auth.widget.handler.handle(
-                firebaseui.auth.widget.HandlerName.SIGN_IN,
-                app,
-                container,
-                opt_email);
+            // shown callback. If email is prefilled, skip the sign-in screen.
+            if (opt_email) {
+              firebaseui.auth.widget.handler.handle(
+                  firebaseui.auth.widget.HandlerName.PREFILLED_EMAIL_SIGN_IN,
+                  app,
+                  container,
+                  opt_email);
+            } else {
+              firebaseui.auth.widget.handler.handle(
+                  firebaseui.auth.widget.HandlerName.SIGN_IN,
+                  app,
+                  container);
+            }
           });
     };
     // Handle accountchooser.com invoked callback, pass continue callback
@@ -1581,12 +1609,21 @@ firebaseui.auth.widget.handler.common.handleSignInWithEmail =
                           AccountChooserResult.UNAVAILABLE,
                         function() {
                           // If not available, go to the sign-in screen and no
-                          // UI shown callback.
-                          firebaseui.auth.widget.handler.handle(
-                              firebaseui.auth.widget.HandlerName.SIGN_IN,
-                              app,
-                              container,
-                              opt_email);
+                          // UI shown callback. If email is prefilled,
+                          // skip the sign-in screen.
+                          if (opt_email) {
+                            firebaseui.auth.widget.handler.handle(
+                                firebaseui.auth.widget.HandlerName
+                                  .PREFILLED_EMAIL_SIGN_IN,
+                                app,
+                                container,
+                                opt_email);
+                          } else {
+                            firebaseui.auth.widget.handler.handle(
+                                firebaseui.auth.widget.HandlerName.SIGN_IN,
+                                app,
+                                container);
+                          }
                         });
                   },
                   firebaseui.auth.storage.getRememberedAccounts(app.getAppId()),

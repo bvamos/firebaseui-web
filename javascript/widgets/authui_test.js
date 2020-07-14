@@ -21,7 +21,6 @@ goog.provide('firebaseui.auth.AuthUITest');
 goog.require('firebaseui.auth.ActionCodeUrlBuilder');
 goog.require('firebaseui.auth.AuthUI');
 goog.require('firebaseui.auth.AuthUIError');
-goog.require('firebaseui.auth.CredentialHelper');
 goog.require('firebaseui.auth.GoogleYolo');
 goog.require('firebaseui.auth.PendingEmailCredential');
 goog.require('firebaseui.auth.RedirectStatus');
@@ -109,11 +108,11 @@ var options = {
   'apiKey': 'API_KEY',
   'authDomain': 'subdomain.firebaseapp.com'
 };
+var googYoloClientId = '1234567890.apps.googleusercontent.com';
 // Mock googleyolo ID token credential.
 var googleYoloIdTokenCredential = {
-  'idToken': 'ID_TOKEN',
-  'id': 'user@example.com',
-  'authMethod': 'https://accounts.google.com'
+  'credential': 'ID_TOKEN',
+  'clientId': googYoloClientId,
 };
 var mockControl;
 var ignoreArgument;
@@ -173,6 +172,17 @@ var mockClock = new goog.testing.MockClock();
 function assertHasCssClass(container, cssName) {
   var page = container.children[0];
   assertTrue(goog.dom.classlist.contains(page,  goog.getCssName(cssName)));
+}
+
+
+/**
+ * Asserts that two errors are equivalent. Plain assertObjectEquals cannot be
+ * used as Internet Explorer adds the stack trace as a property of the object.
+ * @param {!firebaseui.auth.AuthUIError} expected
+ * @param {!firebaseui.auth.AuthUIError} actual
+ */
+function assertErrorEquals(expected, actual) {
+  assertObjectEquals(expected.toPlainObject(), actual.toPlainObject());
 }
 
 
@@ -844,6 +854,77 @@ function testStart() {
 }
 
 
+function testStart_immediateFederatedRedirect_startRedirect() {
+  // Verify when immediateFederatedRedirect is enabled, redirect status is set
+  // correctly before redirecting to IdPs.
+  createAndInstallTestInstances();
+  testStubs.reset();
+  asyncTestCase.waitForSignals(1);
+
+  assertFalse(firebaseui.auth.storage.hasRedirectStatus(app1.getAppId()));
+  // Enable immediateFederatedRedirect and start sign-in.
+  app1.start(container1, {
+    'immediateFederatedRedirect': true,
+    'signInOptions': [{
+      'provider': 'google.com',
+    }],
+    'signInFlow':'redirect'
+  });
+
+  app1.getExternalAuth().runAuthChangeHandler();
+  app1.getAuth().assertSignInWithRedirect([expectedProvider]);
+  app1.getExternalAuth().process().then(() => {
+    return app1.getAuth().process();
+  }).then(() => {
+    // Federated redirect page should be rendered.
+    assertHasCssClass(container1, 'firebaseui-id-page-blank');
+    // Redirect status should be set correctly.
+    assertTrue(firebaseui.auth.storage.hasRedirectStatus(app1.getAppId()));
+    asyncTestCase.signal();
+  });
+}
+
+
+function testStart_immediateFederatedRedirect_finishRedirect() {
+  // Verify when immediateFederatedRedirect is enabled, redirect status is
+  // cleared after sign-in is completed.
+  createAndInstallTestInstances();
+  testStubs.reset();
+  asyncTestCase.waitForSignals(1);
+  // Mock widget coming back from IdP page where the redirect status is set.
+  const redirectStatus = new firebaseui.auth.RedirectStatus();
+  firebaseui.auth.storage.setRedirectStatus(redirectStatus, app1.getAppId());
+  assertTrue(firebaseui.auth.storage.hasRedirectStatus(app1.getAppId()));
+
+  // Enable immediateFederatedRedirect and start sign-in.
+  app1.start(container1, {
+    'immediateFederatedRedirect': true,
+    'signInOptions': [{
+      'provider': 'google.com',
+    }],
+    'signInFlow':'redirect'
+  });
+
+  app1.getExternalAuth().runAuthChangeHandler();
+  app1.getAuth().assertGetRedirectResult(
+      [],
+      function() {
+        app1.getAuth().setUser(expectedUser);
+        return expectedUserCredential;
+      });
+  app1.getExternalAuth().process().then(() => {
+    return app1.getAuth().process();
+  }).then(() => {
+    // Callback page should be rendered to handle redirecting back.
+    assertHasCssClass(container1, 'firebaseui-id-page-callback');
+    // Redirect status should be cleared after sign-in is finished.
+    assertFalse(firebaseui.auth.storage.hasRedirectStatus(app1.getAppId()));
+    app1.getAuth().assertSignOut([]);
+    asyncTestCase.signal();
+  });
+}
+
+
 function testSetLang() {
   testStubs.replace(goog, 'LOCALE', 'de');
   // Language code of auth instance is set to goog.LOCALE at initialization.
@@ -979,6 +1060,66 @@ function testStart_redirect_tenantId() {
 }
 
 
+function testStartWithSignInHint() {
+  // Test startWithSignInHint.
+  testStubs.reset();
+  testStubs.set(
+      firebaseui.auth.widget.handler.common,
+      'handleSignInStart',
+      goog.testing.recordFunction());
+  createAndInstallTestInstances();
+  const emailHint = 'user@example.com';
+
+  // Start sign-in with signInHint.
+  app1.startWithSignInHint(container1, config1, {
+    emailHint,
+  });
+
+  // Verify that the correct email hint is returned.
+  assertEquals(emailHint, app1.getSignInEmailHint());
+  // Verify that email hint is passed to handleSignInStart.
+  /** @suppress {missingRequire} */
+  assertEquals(
+      1,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getCallCount());
+  assertEquals(
+      app1,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getLastCall()
+      .getArgument(0));
+  assertEquals(
+      container1,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getLastCall()
+      .getArgument(1));
+  assertEquals(
+      emailHint,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getLastCall()
+      .getArgument(2));
+
+  // Start sign-in again without signInHint.
+  app1.startWithSignInHint(container1, config1);
+  // Verify that email hint is undefined.
+  assertUndefined(app1.getSignInEmailHint());
+  // Verify that no email hint is passed to handleSignInStart.
+  /** @suppress {missingRequire} */
+  assertEquals(
+      2,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getCallCount());
+  assertEquals(
+      app1,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getLastCall()
+      .getArgument(0));
+  assertEquals(
+      container1,
+      firebaseui.auth.widget.handler.common.handleSignInStart.getLastCall()
+      .getArgument(1));
+  /** @suppress {missingRequire} */
+  assertUndefined(
+      firebaseui.auth.widget.handler.common.handleSignInStart.getLastCall()
+      .getArgument(2));
+
+}
+
+
 function testStart_elementNotFound() {
   // Test widget start method with missing element.
   // Test correct error message thrown when widget element not found.
@@ -1033,7 +1174,7 @@ function testUiChangedCallback() {
     'callbacks': {
       'uiChanged': uiChangedCallback
     },
-    'credentialHelper': firebaseui.auth.CredentialHelper.NONE,
+    'credentialHelper': firebaseui.auth.widget.Config.CredentialHelper.NONE,
   };
   // Initialize app and pass configuration.
   // Make sure internal and external instances installed.
@@ -1452,14 +1593,11 @@ function testAuthUi_oneTapSignIn_disabled() {
       {
         'provider': 'google.com',
         'customParameters': {'prompt': 'select_account'},
-        'authMethod': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
+        'clientId': googYoloClientId,
       }
     ],
-    'credentialHelper': firebaseui.auth.CredentialHelper.NONE
+    'credentialHelper': firebaseui.auth.widget.Config.CredentialHelper.NONE
   };
-  // Expected googyolo config is null.
-  var googYoloConfig = null;
   asyncTestCase.waitForSignals(1);
   var component = new firebaseui.auth.ui.page.Callback();
   component.render(container1);
@@ -1468,7 +1606,7 @@ function testAuthUi_oneTapSignIn_disabled() {
   var getInstance = mockControl.createMethodMock(
       firebaseui.auth.GoogleYolo, 'getInstance');
   getInstance().$returns(googleYolo);
-  // One-Tap should be a no-op since the googleyolo config is null.
+  // One-Tap should be a no-op since the googleyolo client ID is null.
   googleYolo.show(null, true)
       .$once()
       // Simulate no googleyolo credential returned since this is a no-op.
@@ -1506,23 +1644,11 @@ function testAuthUi_oneTapSignIn_autoSignInDisabled() {
       {
         'provider': 'google.com',
         'customParameters': {'prompt': 'select_account'},
-        'authMethod': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
+        'clientId': googYoloClientId,
       }
     ],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
-  };
-  // Expected googyolo config corresponding to the above FirebaseUI config.
-  var googYoloConfig = {
-    'supportedAuthMethods': [
-      'https://accounts.google.com'
-    ],
-    'supportedIdTokenProviders': [
-      {
-        'uri': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
-      }
-    ]
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   };
   asyncTestCase.waitForSignals(1);
   var component = new firebaseui.auth.ui.page.Callback();
@@ -1533,7 +1659,7 @@ function testAuthUi_oneTapSignIn_autoSignInDisabled() {
       firebaseui.auth.GoogleYolo, 'getInstance');
   getInstance().$returns(googleYolo);
   // One-Tap should be shown with auto sign-in disabled.
-  googleYolo.show(googYoloConfig, true)
+  googleYolo.show(googYoloClientId, true)
       .$once()
       // Simulate googleyolo credential returned.
       .$returns(goog.Promise.resolve(googleYoloIdTokenCredential));
@@ -1569,23 +1695,11 @@ function testAuthUi_oneTapSignIn_noCurrentComponent() {
       {
         'provider': 'google.com',
         'customParameters': {'prompt': 'select_account'},
-        'authMethod': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
+        'clientId': googYoloClientId,
       }
     ],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
-  };
-  // Expected googyolo config corresponding to the above FirebaseUI config.
-  var googYoloConfig = {
-    'supportedAuthMethods': [
-      'https://accounts.google.com'
-    ],
-    'supportedIdTokenProviders': [
-      {
-        'uri': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
-      }
-    ]
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   };
   asyncTestCase.waitForSignals(1);
   var component = new firebaseui.auth.ui.page.Callback();
@@ -1596,9 +1710,9 @@ function testAuthUi_oneTapSignIn_noCurrentComponent() {
       firebaseui.auth.GoogleYolo, 'getInstance');
   getInstance().$returns(googleYolo);
   // One-Tap should be shown with auto sign-in disabled.
-  googleYolo.show(googYoloConfig, true)
+  googleYolo.show(googYoloClientId, true)
       .$once()
-      .$does(function(config, autoSignInDisabled) {
+      .$does(function(clientId, autoSignInDisabled) {
         // Simulate no current component rendered.
         app.setCurrentComponent(null);
         // Simulate googleyolo credential returned.
@@ -1629,23 +1743,11 @@ function testAuthUi_oneTapSignIn_autoSignInEnabled() {
     'signInOptions': [
       {
         'provider': 'google.com',
-        'authMethod': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
+        'clientId': googYoloClientId,
       }
     ],
-    'credentialHelper': firebaseui.auth.CredentialHelper.GOOGLE_YOLO
-  };
-  // Expected googyolo config corresponding to the above FirebaseUI config.
-  var googYoloConfig = {
-    'supportedAuthMethods': [
-      'https://accounts.google.com'
-    ],
-    'supportedIdTokenProviders': [
-      {
-        'uri': 'https://accounts.google.com',
-        'clientId': '1234567890.apps.googleusercontent.com'
-      }
-    ]
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.GOOGLE_YOLO
   };
   asyncTestCase.waitForSignals(1);
   var component = new firebaseui.auth.ui.page.Callback();
@@ -1656,7 +1758,7 @@ function testAuthUi_oneTapSignIn_autoSignInEnabled() {
       firebaseui.auth.GoogleYolo, 'getInstance');
   getInstance().$returns(googleYolo);
   // One-Tap should be shown with auto sign-in enabled.
-  googleYolo.show(googYoloConfig, false)
+  googleYolo.show(googYoloClientId, false)
       .$once()
       .$returns(goog.Promise.resolve(googleYoloIdTokenCredential));
   // Provided handler should be passed the expected parameters.
@@ -2973,7 +3075,7 @@ function testStartSignInWithCredential_upgradeAnonymous_nonAnonymous_success() {
   testAuth.setUser(expectedUser);
   // Trigger initial onAuthStateChanged listener.
   app.getExternalAuth().runAuthChangeHandler();
-  // signInAndRetrieveDataWithCredential called on internal Auth instance as no
+  // signInWithCredential called on internal Auth instance as no
   // anonymous user available.
   app.getAuth().assertSignInWithCredential(
       [expectedCredential],
@@ -3004,7 +3106,7 @@ function testStartSignInWithCredential_upgradeAnonymous_noUser_success() {
   testAuth.setUser(null);
   // Trigger initial onAuthStateChanged listener.
   app.getExternalAuth().runAuthChangeHandler();
-  // signInAndRetrieveDataWithCredential called on internal Auth instance as no
+  // signInWithCredential called on internal Auth instance as no
   // user available.
   app.getAuth().assertSignInWithCredential(
       [expectedCredential],
@@ -5295,7 +5397,7 @@ function testOnUpgradeError_credentialAlreadyInUseError() {
     // Confirm signInFailure called with expected UI error.
     assertEquals(
         1, anonymousUpgradeConfig.callbacks.signInFailure.getCallCount());
-    assertObjectEquals(
+    assertErrorEquals(
         expectedMergeError,
         anonymousUpgradeConfig.callbacks.signInFailure.getLastCall()
             .getArgument(0));
@@ -5339,7 +5441,7 @@ function testOnUpgradeError_emailAlreadyInUseError() {
         // Confirm signInFailure called with expected UI error.
         assertEquals(
             1, anonymousUpgradeConfig.callbacks.signInFailure.getCallCount());
-        assertObjectEquals(
+        assertErrorEquals(
             expectedMergeError,
             anonymousUpgradeConfig.callbacks.signInFailure.getLastCall()
                 .getArgument(0));

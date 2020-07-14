@@ -32,18 +32,52 @@ goog.require('goog.testing.jsunit');
 
 
 var IJ_DATA_ = {
-  'googleLogo': '../image/google.svg',
-  'githubLogo': '../image/github.svg',
-  'facebookLogo': '../image/facebook.svg',
-  'twitterLogo': '../image/twitter.svg',
-  'passwordLogo': '../image/mail.svg',
-  'phoneLogo': '../image/phone.svg',
+  'defaultIconUrls': {
+    'google.com': '../image/google.svg',
+    'github.com': '../image/github.svg',
+    'facebook.com': '../image/facebook.svg',
+    'twitter.com': '../image/twitter.svg',
+    'password': '../image/mail.svg',
+    'phone': '../image/phone.svg',
+    'anonymous': '../image/anonymous.svg',
+    'microsoft.com': '../image/microsoft.svg',
+    'yahoo.com': '../image/yahoo.svg',
+    'apple.com': '../image/apple.svg',
+    'saml': '../image/saml.svg',
+    'oidc': '../image/oidc.svg',
+  },
+  'defaultButtonColors': {
+    'google.com': '#ffffff',
+    'github.com': '#333333',
+    'facebook.com': '#3b5998',
+    'twitter.com': '#55acee',
+    'password': '#db4437',
+    'phone': '#02bd7e',
+    'anonymous': '#f4b400',
+    'microsoft.com': '#2F2F2F',
+    'yahoo.com': '#720E9E',
+    'apple.com': '#000000',
+    'saml': '#007bff',
+    'oidc': '#007bff',
+  },
+  'defaultProviderNames': {
+    'google.com': 'Google',
+    'github.com': 'GitHub',
+    'facebook.com': 'Facebook',
+    'twitter.com': 'Twitter',
+    'password': 'Password',
+    'phone': 'Phone',
+    'anonymous': 'Guest',
+    'microsoft.com': 'Microsoft',
+    'yahoo.com': 'Yahoo',
+    'apple.com': 'Apple',
+  },
   'tosCallback': function() {
     window.location.assign('/tos');
   },
   'privacyPolicyCallback': function() {
     window.location.assign('/privacyPolicy');
-  }
+  },
 };
 
 
@@ -162,32 +196,40 @@ function testResendLink() {
 function testIdpButton() {
   var idpConfigs = [
     {
-      providerId: 'password'
+      providerId: 'password',
     },
     {
-      providerId: 'phone'
+      providerId: 'phone',
     },
     {
-      providerId: 'google.com'
+      providerId: 'google.com',
     },
     {
-      providerId: 'github.com'
+      providerId: 'github.com',
     },
     {
-      providerId: 'facebook.com'
+      providerId: 'facebook.com',
     },
     {
-      providerId: 'twitter.com'
+      providerId: 'twitter.com',
     },
     {
-      providerId: 'anonymous'
+      providerId: 'anonymous',
     },
     {
       providerId: 'microsoft.com',
       providerName: 'Microsoft',
       buttonColor: '#FFB6C1',
       iconUrl: 'icon-url',
-      loginHintKey: 'login_hint'
+    },
+    {
+      providerId: 'yahoo.com',
+    },
+    {
+      providerId: 'saml.provider',
+    },
+    {
+      providerId: 'oidc.provider',
     }];
   var root = goog.dom.getElement('idp-button');
   for (var i = 0; i < idpConfigs.length; i++) {
@@ -490,3 +532,34 @@ function testListboxDialogWithIcons() {
       firebaseui.auth.soy2.element.listBoxDialog, data, IJ_DATA_);
   attachShowDialogListener('show-list-box-with-icons', dialog);
 }
+
+
+function testTenantSelectionButton() {
+  const tenantConfigs = [
+    {
+      tenantId: 'TENANT_ID',
+      displayName: 'Contractor A',
+      buttonColor: '#FFB6C1',
+      iconUrl: 'icon-url',
+    },
+    {
+      tenantId: null,
+      displayName: 'ACME',
+      buttonColor: '#53B2BF',
+      iconUrl: 'icon-url',
+    }];
+  const root = goog.dom.getElement('tenant-selection-button');
+  for (let i = 0; i < tenantConfigs.length; i++) {
+    const button = goog.soy.renderAsElement(
+        firebaseui.auth.soy2.element.tenantSelectionButton,
+        {
+          tenantConfig: tenantConfigs[i]
+        },
+        IJ_DATA_);
+    root.appendChild(button);
+    const separator = goog.dom.createElement('div');
+    goog.dom.setProperties(separator, {'style': 'height:15px'});
+    root.appendChild(separator);
+  }
+}
+

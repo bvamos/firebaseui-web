@@ -24,11 +24,9 @@ goog.setTestOnly('firebaseui.auth.widget.handler.testHelper');
 goog.require('firebaseui.auth.Account');
 goog.require('firebaseui.auth.ActionCodeUrlBuilder');
 goog.require('firebaseui.auth.AuthUI');
-goog.require('firebaseui.auth.CredentialHelper');
 goog.require('firebaseui.auth.EventDispatcher');
 goog.require('firebaseui.auth.OAuthResponse');
 goog.require('firebaseui.auth.PendingEmailCredential');
-goog.require('firebaseui.auth.callback.signInSuccess');
 goog.require('firebaseui.auth.idp');
 goog.require('firebaseui.auth.soy2.strings');
 goog.require('firebaseui.auth.storage');
@@ -99,16 +97,16 @@ var operationNotSupportedError = {
       'application is running on. "location.protocol" must be http, https ' +
       'or chrome-extension and web storage must be enabled.'
 };
+var googYoloClientId = '1234567890.apps.googleusercontent.com';
 // googleyolo ID token credential.
 var googleYoloIdTokenCredential = {
-  'idToken': 'ID_TOKEN',
-  'id': federatedAccount.getEmail(),
-  'authMethod': 'https://accounts.google.com'
+  'credential': 'HEADER.' +
+      btoa(JSON.stringify({email: federatedAccount.getEmail()})) + '.SIGNATURE',
+  'clientId': googYoloClientId,
 };
 // googleyolo non ID token credential.
 var googleYoloOtherCredential = {
-  'id': federatedAccount.getEmail(),
-  'authMethod': 'https://accounts.google.com'
+  'clientId': 'other',
 };
 // Mock anonymous user.
 var anonymousUser = {
@@ -378,7 +376,8 @@ function setUp() {
     'popupMode': false,
     'tosUrl': tosCallback,
     'privacyPolicyUrl': 'http://localhost/privacy_policy',
-    'credentialHelper': firebaseui.auth.CredentialHelper.ACCOUNT_CHOOSER_COM,
+    'credentialHelper':
+        firebaseui.auth.widget.Config.CredentialHelper.ACCOUNT_CHOOSER_COM,
     'callbacks': {
       'signInFailure': signInFailureCallback
     },
@@ -890,7 +889,7 @@ function assertTosPpLinkClicked_(tosUrl, privacyPolicyUrl) {
     'firebaseui-tos-link', container);
   var ppLinkElement = goog.dom.getElementByClass(
     'firebaseui-pp-link', container);
-  if (goog.isFunction(tosUrl)) {
+  if (typeof tosUrl === 'function') {
     assertEquals(0, tosUrl.getCallCount());
     goog.testing.events.fireClickSequence(tosLinkElement);
     assertEquals(1, tosUrl.getCallCount());
@@ -898,7 +897,7 @@ function assertTosPpLinkClicked_(tosUrl, privacyPolicyUrl) {
     goog.testing.events.fireClickSequence(tosLinkElement);
     testUtil.assertOpen(tosUrl, '_blank');
   }
-  if (goog.isFunction(privacyPolicyUrl)) {
+  if (typeof privacyPolicyUrl === 'function') {
     assertEquals(0, privacyPolicyUrl.getCallCount());
     goog.testing.events.fireClickSequence(ppLinkElement);
     assertEquals(1, privacyPolicyUrl.getCallCount());
@@ -1157,6 +1156,32 @@ function assertEmailVerificationFailurePage() {
 }
 
 
+/** Asserts that verify and change email success page is displayed. */
+function assertVerifyAndChangeEmailSuccessPage() {
+  assertPage_(container, 'firebaseui-id-page-verify-and-change-email-success');
+}
+
+
+/** Asserts that verify and change email failure page is displayed. */
+function assertVerifyAndChangeEmailFailurePage() {
+  assertPage_(container, 'firebaseui-id-page-verify-and-change-email-failure');
+}
+
+
+/** Asserts that revert second factor addition success page is displayed. */
+function assertRevertSecondFactorAdditionSuccessPage() {
+  assertPage_(
+      container, 'firebaseui-id-page-revert-second-factor-addition-success');
+}
+
+
+/** Asserts that revert second factor addition failure page is displayed. */
+function assertRevertSecondFactorAdditionFailurePage() {
+  assertPage_(
+      container, 'firebaseui-id-page-revert-second-factor-addition-failure');
+}
+
+
 function assertSignInButtonPage() {
   assertPage_(container, 'firebaseui-id-page-sign-in-button');
 }
@@ -1343,8 +1368,8 @@ function assertPage_(container, idClass) {
  * @param {boolean} redirect The return status of the success callback.
  * @param {boolean=} opt_manualRedirect Whether the developer manually
  *     redirects to redirectUrl.
- * @return {!firebaseui.auth.callback.signInSuccess} sign in success callback
- *     function.
+ * @return {!firebaseui.auth.widget.Config.signInSuccessCallback} sign in
+ *     success callback function.
  */
 function signInSuccessCallback(redirect, opt_manualRedirect) {
   return function(user, credential, redirectUrl) {
@@ -1378,8 +1403,8 @@ function assertSignInSuccessCallbackInvoked(
  * @param {boolean} redirect The return status of the success callback.
  * @param {boolean=} opt_manualRedirect Whether the developer manually
  *     redirects to redirectUrl.
- * @return {!firebaseui.auth.callback.signInSuccessWithAuthResult} sign in
- *     success with auth result callback function.
+ * @return {!firebaseui.auth.widget.Config.signInSuccessWithAuthResultCallback}
+ *     sign in success with auth result callback function.
  */
 function signInSuccessWithAuthResultCallback(redirect, opt_manualRedirect) {
   return function(authResult, redirectUrl) {
@@ -1501,8 +1526,11 @@ function assertResendCountdown(timeRemaining) {
 function assertSignInFailure(expectedError) {
   // Confirm signInFailure callback triggered with expected argument.
   assertEquals(1, signInFailureCallback.getCallCount());
+  // Plain assertObjectEquals cannot be used as Internet Explorer adds the
+  // stack trace as a property of the object.
   assertObjectEquals(
-      expectedError, signInFailureCallback.getLastCall().getArgument(0));
+      expectedError.toPlainObject(),
+      signInFailureCallback.getLastCall().getArgument(0).toPlainObject());
   // Sign in success should not be called.
   assertUndefined(signInCallbackUser);
 }

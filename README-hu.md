@@ -25,6 +25,23 @@ Works only with node v6 (node-sass is too old), I have v6.16.0 installed.
 
     npm publish --ignore-scripts
 
+# Installation and usage
+
+## Installation of the Hungarian package (npm)
+
+```bash
+$ npm install firebase --save
+$ npm install firebaseui-hu --save
+```
+## Usage
+
+```javascript
+var firebase = require('firebase');
+var firebaseui = require('firebaseui-hu');
+// or using ES6 imports:
+import firebaseui from 'firebaseui-hu/dist/npm__hu';
+```
+
 ----
 
 **Package created by**

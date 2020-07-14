@@ -127,10 +127,20 @@ function testHandlerRegistration() {
       firebaseui.auth.widget.handler.handleProviderSignIn,
       firebaseui.auth.widget.handlers_[HandlerName.PROVIDER_SIGN_IN]);
   assertEquals(
+      firebaseui.auth.widget.handler.handlePrefilledEmailSignIn,
+      firebaseui.auth.widget.handlers_[HandlerName.PREFILLED_EMAIL_SIGN_IN]);
+  assertEquals(
       firebaseui.auth.widget.handler.handleEmailLinkSignInCallback,
       firebaseui.auth.widget.handlers_[
           HandlerName.EMAIL_LINK_SIGN_IN_CALLBACK]);
   assertEquals(
       firebaseui.auth.widget.handler.handleUnsupportedProvider,
       firebaseui.auth.widget.handlers_[HandlerName.UNSUPPORTED_PROVIDER]);
+  assertEquals(
+      firebaseui.auth.widget.handler.handleVerifyAndChangeEmail,
+      firebaseui.auth.widget.handlers_[HandlerName.VERIFY_AND_CHANGE_EMAIL]);
+  assertEquals(
+      firebaseui.auth.widget.handler.handleRevertSecondFactorAddition,
+      firebaseui.auth.widget.handlers_[
+      HandlerName.REVERT_SECOND_FACTOR_ADDITION]);
 }

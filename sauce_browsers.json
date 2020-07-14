@@ -13,20 +13,6 @@
     "name": "chrome-latest-mac"
   },
   {
-    "browserName" : "internet explorer",
-    "version" : "11.0",
-    "platform" : "Windows 7",
-    "timeZone": "Pacific",
-    "name": "ie-11-windows"
-  },
-  {
-    "browserName" : "MicrosoftEdge",
-    "platform" : "Windows 10",
-    "timeZone": "Pacific",
-    "version" : "16.16299",
-    "name": "edge-16-windows"
-  },
-  {
     "browserName" : "safari",
     "version" : "10.0",
     "platform" : "OS X 10.11",
@@ -43,8 +29,8 @@
   {
     "deviceName": "Android Emulator",
     "platformName": "Android",
-    "platformVersion": "5.1",
-    "browserName": "Browser",
-    "name": "android-51-sim"
+    "platformVersion": "6.0",
+    "browserName": "Chrome",
+    "name": "android-6-sim"
   }
 ]

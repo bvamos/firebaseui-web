@@ -8,8 +8,8 @@ to eliminate boilerplate code and promote best practices.
 
 FirebaseUI Auth provides a drop-in auth solution that handles the UI flows for
 signing in users with email addresses and passwords, phone numbers, Identity
-Provider Sign In including Google, Facebook, GitHub, Twitter, Microsoft, Yahoo,
-OpenID Connect (OIDC) providers and SAML providers. It is built on top of
+Provider Sign In including Google, Facebook, GitHub, Twitter, Apple, Microsoft,
+Yahoo, OpenID Connect (OIDC) providers and SAML providers. It is built on top of
 [Firebase Auth](https://firebase.google.com/docs/auth).
 
 The FirebaseUI component implements best practices for authentication on mobile
@@ -22,9 +22,9 @@ FirebaseUI Auth clients are also available for
 [Android](https://github.com/firebase/firebaseui-android).
 
 FirebaseUI fully supports all recent browsers. Signing in with federated
-providers (Google, Facebook, Twitter, GitHub, Microsoft, Yahoo, OIDC, SAML) is
-also supported in Cordova/Ionic environments. Additional non-browser
-environments (React Native...) or Chrome extensions will be added once the
+providers (Google, Facebook, Twitter, GitHub, Apple, Microsoft, Yahoo, OIDC,
+SAML) is also supported in Cordova/Ionic environments. Additional non-browser
+environments(React Native...) or Chrome extensions will be added once the
 underlying Firebase core SDK supports them in a way that is compatible with
 FirebaseUI.
 
@@ -37,11 +37,12 @@ FirebaseUI.
 5. [Customization](#customizing-firebaseui-for-authentication)
 6. [Advanced](#advanced)
 7. [Developer Setup](#developer-setup)
-8. [Cordova Setup](#cordova-setup)
-9. [React DOM Setup](#react-dom-setup)
-10. [Angular Setup](#angular-setup)
-11. [Known issues](#known-issues)
-12. [Release Notes](#release-notes)
+8. [IAP External Identities Support with FirebaseUI](#iap-external-identities-support-with-firebaseui)
+9. [Cordova Setup](#cordova-setup)
+10. [React DOM Setup](#react-dom-setup)
+11. [Angular Setup](#angular-setup)
+12. [Known issues](#known-issues)
+13. [Release Notes](#release-notes)
 
 ## Demo
 
@@ -60,8 +61,8 @@ You just need to include the following script and CSS file in the `<head>` tag
 of your page, below the initialization snippet from the Firebase Console:
 
 ```html
-<script src="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.js"></script>
-<link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.js"></script>
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.css" />
 ```
 
 #### Localized Widget
@@ -70,17 +71,17 @@ Localized versions of the widget are available through the CDN. To use a localiz
 localized JS library instead of the default library:
 
 ```html
-<script src="https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth__{LANGUAGE_CODE}.js"></script>
-<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth.css" />
+<script src="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth__{LANGUAGE_CODE}.js"></script>
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.css" />
 ```
 
 where `{LANGUAGE_CODE}` is replaced by the code of the language you want. For example, the French
 version of the library is available at
-`https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth__fr.js`. The list of available
+`https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth__fr.js`. The list of available
 languages and their respective language codes can be found at [LANGUAGES.md](LANGUAGES.md).
 
 Right-to-left languages also require the right-to-left version of the stylesheet, available at
-`https://www.gstatic.com/firebasejs/ui/4.2.0/firebase-ui-auth-rtl.css`, instead of the default
+`https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth-rtl.css`, instead of the default
 stylesheet. The supported right-to-left languages are Arabic (ar), Farsi (fa), and Hebrew (iw).
 
 ### Option 2: npm Module
@@ -138,12 +139,10 @@ FirebaseUI includes the following flows:
 *"One account per email address"* setting is enabled in the
 [Firebase console](https://console.firebase.google.com). This setting is enabled
 by default.)
-6. [Account Chooser](https://www.accountchooser.com/learnmore.html?lang=en) for
-remembering emails
-7. Integration with
-[one-tap sign-up](https://developers.google.com/identity/one-tap/web/overview)
-8. Ability to upgrade anonymous users through sign-in/sign-up
-9. Sign-in as a guest
+6. Integration with
+[one-tap sign-up](https://developers.google.com/identity/one-tap/web/)
+7. Ability to upgrade anonymous users through sign-in/sign-up.
+8. Sign-in as a guest
 
 ### Configuring sign-in providers
 
@@ -159,6 +158,7 @@ provider you want to use in their own developer app settings. Please read the
 - [Github](https://firebase.google.com/docs/auth/web/github-auth#before_you_begin)
 - [Anonymous](https://firebase.google.com/docs/auth/web/anonymous-auth#before_you_begin)
 - [Email link](https://firebase.google.com/docs/auth/web/email-link-auth#before_you_begin)
+- [Apple](https://firebase.google.com/docs/auth/web/apple)
 - [Microsoft](https://firebase.google.com/docs/auth/web/microsoft-oauth)
 - [Yahoo](https://firebase.google.com/docs/auth/web/yahoo-oauth)
 
@@ -195,8 +195,8 @@ for a more in-depth example, showcasing a Single Page Application mode.
        * TODO(DEVELOPER): Paste the initialization snippet from:
        * Firebase Console > Overview > Add Firebase to your web app. *
        ***************************************************************************************** -->
-    <script src="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.js"></script>
-    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.css" />
+    <script src="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.css" />
     <script type="text/javascript">
       // FirebaseUI config.
       var uiConfig = {
@@ -362,8 +362,11 @@ FirebaseUI supports the following configuration parameters.
   The Credential Helper to use.
   See <a href="#credential-helper">Credential Helper</a>.
   <br/>
-  <em>Default:</em>
+  <em>Default (before July 31st, 2020):</em>
   <code>firebaseui.auth.CredentialHelper.ACCOUNT_CHOOSER_COM</code>
+  <br/>
+  <em>Default (after July 31st, 2020):</em>
+  <code>firebaseui.auth.CredentialHelper.NONE</code>
 </td>
 </tr>
 <tr>
@@ -452,10 +455,13 @@ When one is enabled, your users will be prompted with email addresses and
 usernames they have saved from your app or other applications.
 FirebaseUI supports the following credential helpers:
 
-- [one-tap sign-up](https://developers.google.com/identity/one-tap/web/overview)
+- [one-tap sign-up](https://developers.google.com/identity/one-tap/web/)
 - [accountchooser.com](https://www.accountchooser.com/learnmore.html)
 
 #### accountchooser.com
+(`accountchooser.com` will be operating in "universal opt-out" mode
+starting July 31st, 2020, it should no longer be used as a `CredentialHelper`.
+Learn more at https://accountchooser.net/developers.)
 
 When [accountchooser.com](https://www.accountchooser.com/learnmore.html) is
 enabled (enabled by default), upon signing in or
@@ -466,9 +472,7 @@ non HTTP/HTTPS environments.
 
 #### One-tap sign-up
 
-> **Note:** The beta test program for this API is currently closed.  
-
-[One-tap sign-up](https://developers.google.com/identity/one-tap/web/overview)
+[One-tap sign-up](https://developers.google.com/identity/one-tap/web/)
 provides seamless authentication flows to
 your users with Google's one tap sign-up and automatic sign-in APIs.
 With one tap sign-up, users are prompted to create an account with a dialog
@@ -487,11 +491,11 @@ sign-in will be automatically disabled.
 One-tap is an additive feature and is only supported in the latest evergreen
 modern browser environments.
 For more information on how to configure one-tap sign-up, refer to the
-[one-tap get started guide](https://developers.google.com/identity/one-tap/web/get-started).
+[one-tap get started guide](https://developers.google.com/identity/one-tap/web/guides/get-google-api-clientid).
 
 The following example shows how to configure one-tap sign-up with FirebaseUI.
-Along with the corresponding one-tap `credentialHelper`, `clientId` and
-`authMethod` have to be provided with the Firebase Google provider:
+Along with the corresponding one-tap `credentialHelper`, the  Google OAuth
+`clientId` has to be provided with the Firebase Google provider:
 
 ```javascript
 ui.start('#firebaseui-auth-container', {
@@ -500,11 +504,10 @@ ui.start('#firebaseui-auth-container', {
       // Google provider must be enabled in Firebase Console to support one-tap
       // sign-up.
       provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-      // Required to enable this provider in one-tap sign-up.
-      authMethod: 'https://accounts.google.com',
       // Required to enable ID token credentials for this provider.
       // This can be obtained from the Credentials page of the Google APIs
-      // console.
+      // console. Use the same OAuth client ID used for the Google provider
+      // configured with GCIP or Firebase Auth.
       clientId: 'xxxxxxxxxxxxxxxxx.apps.googleusercontent.com'
     },
     firebase.auth.FacebookAuthProvider.PROVIDER_ID,
@@ -527,11 +530,11 @@ being rendered after the user signs out.
 To see FirebaseUI in action with one-tap sign-up, check out the FirebaseUI
 [demo app](https://fir-ui-demo-84a6c.firebaseapp.com/).
 
-|Credential Helper |Value                                                 |
-|------------------|------------------------------------------------------|
-|accountchooser.com|`firebaseui.auth.CredentialHelper.ACCOUNT_CHOOSER_COM`|
-|One-tap sign-up   |`firebaseui.auth.CredentialHelper.GOOGLE_YOLO`        |
-|None (disable)    |`firebaseui.auth.CredentialHelper.NONE`               |
+|Credential Helper                 |Value                                                 |
+|----------------------------------|------------------------------------------------------|
+|accountchooser.com (deprecated)   |`firebaseui.auth.CredentialHelper.ACCOUNT_CHOOSER_COM`|
+|One-tap sign-up                   |`firebaseui.auth.CredentialHelper.GOOGLE_YOLO`        |
+|None (disable)                    |`firebaseui.auth.CredentialHelper.NONE`               |
 
 ### Available providers
 
@@ -544,6 +547,7 @@ To see FirebaseUI in action with one-tap sign-up, check out the FirebaseUI
 |Email and password|`firebase.auth.EmailAuthProvider.PROVIDER_ID`   |
 |Phone number      |`firebase.auth.PhoneAuthProvider.PROVIDER_ID`   |
 |Anonymous         |`firebaseui.auth.AnonymousAuthProvider.PROVIDER_ID`|
+|Apple             |`apple.com`                                     |
 |Microsoft         |`microsoft.com`                                 |
 |Yahoo             |`yahoo.com`                                     |
 |SAML (GCIP only)  |`saml.*********`                               |
@@ -590,10 +594,25 @@ ui.start('#firebaseui-auth-container', {
 #### Generic OAuth provider
 
 You can let your users authenticate with FirebaseUI using OAuth providers like
+[Apple](https://firebase.google.com/docs/auth/web/apple),
 [Microsoft Azure Active Directory](https://firebase.google.com/docs/auth/web/microsoft-oauth)
 and [Yahoo](https://firebase.google.com/docs/auth/web/yahoo-oauth)
 by integrating generic OAuth Login into your app.
 
+You just need to pass the provider ID in `signInOptions`, FirebaseUI provides
+the default configurations for the sign in button(button color, icon and display name):
+
+```javascript
+ui.start('#firebaseui-auth-container', {
+  signInOptions: [
+    'apple.com',
+    'microsoft.com',
+    'yahoo.com',
+  ]
+});
+```
+
+You can also override these default configurations with your own custom ones.
 Generic OAuth providers' `signInOptions` support the following configuration
 parameters.
 
@@ -623,7 +642,7 @@ parameters.
 </tr>
 <tr>
 <td>buttonColor</td>
-<td>Yes</td>
+<td>No</td>
 <td>
   The color of sign in button. The css of the button can be overwritten with
   the attribute/value in the HTML element:
@@ -632,7 +651,7 @@ parameters.
 </tr>
 <tr>
 <td>iconUrl</td>
-<td>Yes</td>
+<td>No</td>
 <td>
   The URL of the Identity Provider's icon. This will be displayed on the
   provider's sign-in button, etc.
@@ -1228,8 +1247,8 @@ FirebaseUI is displayed.
        * TODO(DEVELOPER): Paste the initialization snippet from:
        * Firebase Console > Overview > Add Firebase to your web app. *
        ***************************************************************************************** -->
-    <script src="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.js"></script>
-    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/4.2.0/firebaseui.css" />
+    <script src="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.5.2/firebase-ui-auth.css" />
     <script type="text/javascript">
       // FirebaseUI config.
       var uiConfig = {
@@ -1259,7 +1278,7 @@ FirebaseUI is displayed.
             document.getElementById('loader').style.display = 'none';
           }
         },
-        credentialHelper: firebaseui.auth.CredentialHelper.ACCOUNT_CHOOSER_COM,
+        credentialHelper: firebaseui.auth.CredentialHelper.NONE,
         // Query parameter name for mode.
         queryParameterForWidgetMode: 'mode',
         // Query parameter name for sign in success url.
@@ -1571,10 +1590,22 @@ where `{LANGUAGE_CODE}` is replaced by the
 can be built with `npm run build build-js-fr`. This will create a binary
 `firebaseui__fr.js` in the `dist/` folder.
 
+Build names for language codes with underscores, eg. `zh_tw`, `zh_cn`, `pt_pt`
+will be mapped to `zh-TW`, `xh-CN`, `pt-PT`. The underscore will be replaced by
+a hyphen symbol and the subsequent characters will be capitalized.
+
+```bash
+npm run build build-js-zh-TW
+```
+
+This will create a binary `firebaseui__zh_tw.js` in the `dist/` folder.
+
 To build a localized npm FirebaseUI module, run:
+
 ```bash
 npm run build build-npm-{LANGUAGE_CODE}
 ```
+
 Make sure all underscore symbols in the `LANGUAGE_CODE` are replaced with
 dashes.
 This will generate `dist/npm__{LANGUAGE_CODE}.js`.
@@ -1582,6 +1613,16 @@ You can then import/require it:
 ```javascript
 import firebaseui from './npm__{LANGUAGE_CODE}';
 ```
+
+Build names for language codes with underscores, eg. `zh_tw`, `zh_cn`, `pt_pt`
+will be mapped to `zh-TW`, `xh-CN`, `pt-PT`. The underscore will be replaced by
+a hyphen symbol and the subsequent characters will be capitalized.
+
+```bash
+npm run build build-npm-zh-TW
+```
+
+This will create a binary `npm__zh_tw.js` in the `dist/` folder.
 
 ### Running the demo app
 
@@ -1647,6 +1688,13 @@ the other terminal that has the exported variables, run the tests:
 ```bash
 npm test -- --saucelabs --tunnelIdentifier=<the tunnel identifier>
 ```
+
+## IAP External Identities Support with FirebaseUI
+
+You can use FirebaseUI to build the authentication page to use external
+identities with
+[Google Cloud IAP](https://cloud.google.com/iap/docs/external-identities).
+The documentation can be found [here](firebaseuihandler/README.md).
 
 ## Cordova Setup
 
